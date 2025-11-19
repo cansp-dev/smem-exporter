@@ -1,31 +1,20 @@
+
+mod helpers;
+
+use helpers::get_binary;
 use std::process::Command;
 
 #[test]
-fn help_flag_works() {
-    let exe = env!("CARGO_BIN_EXE_smem_exporter");
-
+fn help_output() {
+    let exe = get_binary();
     let output = Command::new(exe)
         .arg("--help")
         .output()
-        .expect("failed to run --help");
+        .expect("failed to start smem-exporter");
 
-    assert!(
-        output.status.success(),
-        "process exited with status {:?}",
-        output.status.code()
-    );
-
+    assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
 
-    assert!(
-        stdout.contains("smem-exporter"),
-        "help output did not contain program name, got: {}",
-        stdout
-    );
-
-    assert!(
-        stdout.to_lowercase().contains("usage"),
-        "help output did not contain 'usage', got: {}",
-        stdout
-    );
+    assert!(stdout.contains("USAGE"));
+    assert!(stdout.contains("smem-exporter"));
 }
