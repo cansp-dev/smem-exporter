@@ -1,70 +1,57 @@
-name: Build & Release
+name: Release
 
 on:
   push:
     tags:
-      - "v*.*.*"
+      - "v*"
 
 jobs:
   build:
-    name: Build binaries
     runs-on: ubuntu-latest
 
     strategy:
       matrix:
-        include:
-          - target: x86_64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: aarch64-unknown-linux-gnu
-            os: ubuntu-latest
-          - target: armv7-unknown-linux-gnueabihf
-            os: ubuntu-latest
+        target:
+          - x86_64-unknown-linux-gnu
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Rust
+      - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install Cross (for ARM builds)
-        run: |
-          cargo install cross --git https://github.com/cross-rs/cross
+      - name: Install target
+        run: rustup target add ${{ matrix.target }}
 
-      - name: Build (${{ matrix.target }})
-        run: |
-          cross build --release --target ${{ matrix.target }}
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }}
 
-      - name: Create archive
-        run: |
-          mkdir -p artifacts
-          cp target/${{ matrix.target }}/release/smem_exporter artifacts/
-          cd artifacts
-          tar -czvf smem_exporter-${{ matrix.target }}.tar.gz smem_exporter
-          sha256sum smem_exporter-${{ matrix.target }}.tar.gz > smem_exporter-${{ matrix.target }}.sha256
-
-      - name: Upload artifacts
+      - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: smem_exporter-${{ matrix.target }}
-          path: artifacts/
+          name: smem-exporter-${{ matrix.target }}
+          path: target/${{ matrix.target }}/release/smem-exporter
+          if-no-files-found: error
 
   release:
-    name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
 
     steps:
       - name: Download artifacts
         uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Display downloaded structure
+        run: tree artifacts
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v1
         with:
-          files: |
-            **/*.tar.gz
-            **/*.sha256
+          files: artifacts/**/* 
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
