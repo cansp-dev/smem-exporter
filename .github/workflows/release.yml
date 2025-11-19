@@ -14,81 +14,43 @@ jobs:
           - x86_64-unknown-linux-gnu
           - x86_64-unknown-linux-musl
           - aarch64-unknown-linux-gnu
-          - aarch64-unknown-linux-musl
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Install cross toolchains
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-aarch64-linux-gnu \
-            libc6-dev-arm64-cross \
-            musl-tools
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install cross-binutils for ARM64
+        if: matrix.target == 'aarch64-unknown-linux-gnu'
+        run: sudo apt-get update && sudo apt-get install -y gcc-aarch64-linux-gnu lld
+
       - name: Build
-        env:
-          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
-          CC_aarch64_unknown_linux_musl: musl-gcc
-          RUSTFLAGS: "-C target-feature=-crt-static"
         run: cargo build --release --locked --target ${{ matrix.target }}
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: smem-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/smem-exporter
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: smem-*
-          path: ./artifacts
-
-      - name: Upload to GitHub Release
+      - name: Upload binary to Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: ./artifacts/**
-          file_glob: true
+          file: target/${{ matrix.target }}/release/smem-exporter
+          asset_name: smem-exporter-${{ matrix.target }}
           tag: ${{ github.ref }}
 
   docker:
-    needs: release
+    needs: build
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Download MUSL binaries
-        uses: actions/download-artifact@v4
-        with:
-          pattern: smem-*-musl
-          path: ./dockerbin
-
-      - name: Prepare MUSL binary
-        run: |
-          cp dockerbin/smem-aarch64-unknown-linux-musl/smem-exporter smem-exporter-arm64
-          cp dockerbin/smem-x86_64-unknown-linux-musl/smem-exporter smem-exporter-amd64
-          chmod +x smem-exporter-*
-
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
 
-      - name: Set up buildx
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
       - name: Login to Docker Hub
@@ -97,11 +59,11 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & push multi-arch
+      - name: Build and push multi-arch Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64, linux/arm64
           push: true
           tags: |
             canspnet/smem-exporter:${{ github.ref_name }}
