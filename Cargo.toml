@@ -1,6 +1,6 @@
 [package]
 name = "smem-exporter"
-version = "0.1.5"
+version = "0.1.7"
 edition = "2021"
 description = "Prometheus exporter for per-process RSS/PSS/USS based on /proc/*/smaps"
 license = "MIT"
