@@ -25,28 +25,13 @@ jobs:
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
 
-      - name: Upload binary
-        uses: actions/upload-artifact@v4
+      - name: Upload binary to Release
+        uses: svenstaro/upload-release-action@v2
         with:
-          name: smem-exporter-${{ matrix.target }}
-          path: target/${{ matrix.target }}/release/smem-exporter
-
-  release:
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
-    steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: artifacts/**/smem-exporter*
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: target/${{ matrix.target }}/release/smem-exporter
+          asset_name: smem-exporter-${{ matrix.target }}
+          tag: ${{ github.ref }}
 
   docker:
     needs: build
@@ -55,15 +40,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-    
-      - name: Download binary artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: smem-exporter-x86_64-unknown-linux-gnu
-          path: ./
-        
-      - name: Rename binary for Docker
-        run: mv smem-exporter-x86_64-unknown-linux-gnu smem-exporter
+      
+      - name: Download binary from Release
+        run: |
+          wget -O smem-exporter https://github.com/cansp-dev/smem-exporter/releases/download/${{ github.ref_name }}/smem-exporter-x86_64-unknown-linux-gnu
+          chmod +x smem-exporter
         
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3

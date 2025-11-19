@@ -3,9 +3,8 @@ FROM alpine:latest
 RUN addgroup -S app && adduser -S app -G app
 USER app
 
-# Binary vom GitHub Release holen
-# TAG wird beim Build gesetzt
-COPY smem-exporter /usr/local/bin/smem-exporter
+# Binary wird aus dem Build Context kopiert
+COPY --chown=app:app smem-exporter /usr/local/bin/smem-exporter
 
 RUN chmod +x /usr/local/bin/smem-exporter
 
