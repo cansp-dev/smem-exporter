@@ -1,12 +1,11 @@
-
-mod helpers;
-use helpers::find_binary;
-use std::process::Command;
-
 #[test]
 fn version_output() {
-    let exe = find_binary();
-    let output = Command::new(exe).arg("--version").output().unwrap();
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("smem-exporter"));
+    let output = std::process::Command::new("target/debug/smem-exporter")
+        .arg("--version")
+        .output()
+        .expect("Failed to execute smem_exporter");
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    assert!(stdout.contains("smem_exporter"));
+    assert!(stdout.contains('v'));
 }

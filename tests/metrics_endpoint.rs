@@ -1,12 +1,55 @@
-
 mod helpers;
 use helpers::find_binary;
-use std::process::Command;
+use std::io::{Read, Write};
+use std::net::TcpStream;
+use std::process::{Command, Stdio};
+use std::thread;
+use std::time::Duration;
+
+fn wait_for_port(addr: &str, retries: u32) -> bool {
+    for _ in 0..retries {
+        if TcpStream::connect(addr).is_ok() {
+            return true;
+        }
+        thread::sleep(Duration::from_millis(100));
+    }
+    false
+}
 
 #[test]
 fn metrics_endpoint_works() {
     let exe = find_binary();
-    let output = Command::new(exe).arg("--print-metrics").output().unwrap();
-    let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains("smem_"));
+    let addr = "127.0.0.1:19216";
+
+    let mut child = Command::new(exe)
+        .arg("--listen")
+        .arg(addr)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .expect("failed to start smem_exporter");
+
+    if !wait_for_port(addr, 50) {
+        let _ = child.kill();
+        panic!("smem_exporter did not start listening on {}", addr);
+    }
+
+    let mut stream = TcpStream::connect(addr).expect("failed to connect to smem_exporter");
+    stream
+        .write_all(b"GET /metrics HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n")
+        .expect("failed to write request");
+
+    let mut buf = String::new();
+    stream
+        .read_to_string(&mut buf)
+        .expect("failed to read response");
+
+    let _ = child.kill();
+    let _ = child.wait();
+
+    assert!(
+        buf.contains("smem_rss_bytes") || buf.contains("smem_uss_bytes"),
+        "metrics output missing expected metrics: {}",
+        buf
+    );
 }
