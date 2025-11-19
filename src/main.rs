@@ -5,7 +5,7 @@ use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::ge
 use clap::Parser;
 use prometheus::{Encoder, Gauge, GaugeVec, Opts, Registry, TextEncoder};
 use rayon::prelude::*;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fs,
@@ -50,7 +50,7 @@ struct Args {
 }
 
 /// YAML configuration
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 struct Config {
     listen_addr: Option<String>,
     min_uss_kb: Option<u64>,
