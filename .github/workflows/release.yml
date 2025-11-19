@@ -4,18 +4,14 @@ on:
   push:
     tags:
       - "v*"
-  # OPTIONAL: Auch manuell auslösbar
-  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         target:
           - x86_64-unknown-linux-gnu
-          # - x86_64-unknown-linux-musl  # Für statically linked binary
 
     steps:
       - name: Checkout
@@ -29,19 +25,17 @@ jobs:
       - name: Build
         run: cargo build --release --locked --target ${{ matrix.target }}
 
-      - name: Strip binary (optional)
-        run: strip target/${{ matrix.target }}/release/smem-exporter
-
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
           name: smem-exporter-${{ matrix.target }}
           path: target/${{ matrix.target }}/release/smem-exporter
-          if-no-files-found: error
 
   release:
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
       - name: Download artifacts
@@ -49,19 +43,27 @@ jobs:
         with:
           path: artifacts
 
-      - name: Display downloaded structure
-        run: find artifacts -type f
-
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           files: artifacts/**/smem-exporter*
-          body: |
-            Automated release for ${{ github.ref_name }}
-            
-            ## Changes
-            - Memory metrics exporter
-            - Top-N sorting support
-            - Background caching
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Build Docker image
+        run: |
+          docker build -t smem-exporter:${{ github.ref_name }} .
+          
+      - name: Push to GitHub Container Registry
+        run: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+          docker tag smem-exporter:${{ github.ref_name }} ghcr.io/cansp-dev/smem-exporter:${{ github.ref_name }}
+          docker push ghcr.io/cansp-dev/smem-exporter:${{ github.ref_name }}
