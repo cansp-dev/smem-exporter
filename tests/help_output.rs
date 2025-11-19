@@ -1,3 +1,4 @@
+// tests/help_output.rs
 mod helpers;
 use helpers::find_binary;
 use std::process::Command;
@@ -9,8 +10,13 @@ fn help_output() {
         .arg("--help")
         .output()
         .expect("failed to run smem_exporter --help");
+    
     assert!(output.status.success());
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("smem_exporter"));
+    
+    // Auf tatsächlichen Output anpassen:
+    assert!(stdout.contains("smem-exporter"));  // ← MIT Bindestrich!
+    assert!(stdout.contains("Prometheus exporter"));
     assert!(stdout.contains("--listen") || stdout.contains("-l"));
+    assert!(stdout.contains("--config") || stdout.contains("-c"));
 }
