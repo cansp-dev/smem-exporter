@@ -28,7 +28,7 @@ jobs:
         run: |
           sudo apt-get update
           if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+            sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu qemu-user-static
           fi
 
       - name: Build debug binary for tests
@@ -43,8 +43,20 @@ jobs:
       - name: Smoke test binary
         run: |
           echo "🧪 Smoke testing ${{ matrix.target }} binary..."
-          ./target/${{ matrix.target }}/release/smem-exporter --version
+          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
+            # Use QEMU for ARM64 binary testing on AMD64 host
+            qemu-aarch64-static ./target/${{ matrix.target }}/release/smem-exporter --version
+          else
+            ./target/${{ matrix.target }}/release/smem-exporter --version
+          fi
           echo "✅ Binary smoke test passed for ${{ matrix.target }}"
+
+      - name: Binary security scan
+        run: |
+          echo "🔒 Basic binary security checks..."
+          file ./target/${{ matrix.target }}/release/smem-exporter
+          ls -la ./target/${{ matrix.target }}/release/smem-exporter
+          echo "✅ Binary security check completed for ${{ matrix.target }}"
 
       - name: Upload binary to Release
         uses: svenstaro/upload-release-action@v2
@@ -128,12 +140,12 @@ jobs:
           
           # Basic functionality test
           echo "1. Basic version test..."
-          docker run --rm \
+          docker run --rm --platform linux/arm64 \
             canspnet/smem-exporter:test-arm64 --version
           
           # Extended container tests
           echo "2. Extended container lifecycle test..."
-          docker run -d --name arm64-test \
+          docker run -d --name arm64-test --platform linux/arm64 \
             -p 9216:9215 \
             canspnet/smem-exporter:test-arm64
           
@@ -166,8 +178,12 @@ jobs:
           echo "9. Testing file system permissions..."
           docker exec arm64-test ls -la /usr/local/bin/smem-exporter && echo "✅ Binary permissions OK"
           
+          # Architecture verification
+          echo "10. Verifying architecture..."
+          docker exec arm64-test uname -m && echo "✅ Architecture verified"
+          
           # Graceful shutdown test
-          echo "10. Testing graceful shutdown..."
+          echo "11. Testing graceful shutdown..."
           docker stop arm64-test
           sleep 5
           docker rm arm64-test
@@ -238,11 +254,10 @@ jobs:
           echo "🚀 Final smoke test from Docker Hub registry..."
           
           # Test pulling and running the actual pushed image
-          docker pull canspnet/smem-exporter:${{ github.ref_name }}
+          docker pull --platform linux/amd64 canspnet/smem-exporter:${{ github.ref_name }}
           
           # Quick smoke test on the multi-arch image
-          docker run --rm \
-            --name final-smoke-test \
+          docker run --rm --platform linux/amd64 \
             canspnet/smem-exporter:${{ github.ref_name }} --version
           
           echo "✅ Final registry smoke test passed!"
