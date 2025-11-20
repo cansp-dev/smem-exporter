@@ -17,10 +17,15 @@ RUN cargo build --release
 
 
 # ---------- Stage 2: Final Image ----------
-FROM alpine:3.20
+FROM ubuntu:24.04
 
-# Create non-root user
-RUN addgroup -S app && adduser -S app -G app
+# Install minimal dependencies and create non-root user
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends ca-certificates && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/* && \
+    groupadd -r app && \
+    useradd -r -g app app
 
 COPY --from=builder /app/target/release/smem-exporter /usr/local/bin/smem-exporter
 
@@ -29,5 +34,9 @@ RUN chmod +x /usr/local/bin/smem-exporter
 USER app
 
 EXPOSE 9215
+
+# Health check to verify the application starts correctly
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD ["/usr/local/bin/smem-exporter", "--version"] || exit 1
 
 ENTRYPOINT ["smem-exporter"]
