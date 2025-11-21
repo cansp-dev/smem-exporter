@@ -6,8 +6,10 @@ RUN apk add --no-cache libgcc
 # Create non-root user
 RUN addgroup -S app && adduser -S app -G app
 
-# Copy binary (verwende das musl binary für bessere Kompatibilität)
+# Copy binary (using musl binary for better compatibility)
 COPY target/x86_64-unknown-linux-musl/release/smem-exporter /usr/local/bin/
+RUN chmod +x /usr/local/bin/smem-exporter 
+
 
 # Switch to non-root user
 USER app
