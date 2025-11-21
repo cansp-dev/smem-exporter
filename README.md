@@ -26,7 +26,7 @@ git clone https://github.com/yourusername/smem_exporter
 cd smem_exporter
 cargo build --release
 
-📖 Usage
+## 📖 Usage
 
 See `configs/smem_exporter.example.yaml` for detailed configuration options.
 
@@ -55,7 +55,7 @@ top_n_processes: Number of ungrouped processes to export
 
 groups: Process classification rules with business metadata
 
-📈 Metrics
+## 📈 Metrics
 Access metrics at: http://localhost:9215/metrics
 
 Key Metrics:
@@ -67,7 +67,7 @@ smem_team_uss_bytes - Business context aggregates
 
 smem_scan_* - Scan performance statistics
 
-🧪 Development
+## 🧪 Development
 
 # Build
 cargo build
@@ -81,6 +81,6 @@ cargo fmt
 # Linting
 cargo clippy
 
-📄 License
+## 📄 License
 MIT
 
