@@ -36,7 +36,8 @@ const BUFFER_CAP: usize = 512 * 1024;
 #[command(
     name = "smem-exporter",
     version = VERSION,
-    about = "Prometheus exporter for per-process RSS/PSS/USS"
+    about = "Prometheus exporter for per-process RSS/PSS/USS",
+    author = "Michael Moll <m.moll@cansp.net> - Computer and Network Service Provider DOO"
 )]
 struct Args {
     #[arg(short='c', long)]
