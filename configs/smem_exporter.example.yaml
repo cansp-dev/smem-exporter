@@ -1,0 +1,144 @@
+# smem_exporter.example.yaml
+# Example configuration file for smem_exporter
+
+# HTTP listen address
+listen_addr: "0.0.0.0:9215"
+
+# Background scan interval in seconds (default: 300 = 5 minutes)
+scan_interval_seconds: 300
+
+# Minimum USS in KB for a process to be considered (filters out small processes)
+min_uss_kb: 1024
+
+# Sorting key for Top-N processes: "uss", "rss", or "pss"
+top_sort: "uss"
+
+# Number of ungrouped top processes (group="other") to export
+top_n_processes: 20
+
+# Include PID in labels (can cause high cardinality)
+include_pid_labels: true
+
+# Maximum processes to scan in /proc (performance protection)
+max_processes: 1000
+
+# Maximum duration in ms for a complete cache scan (best-effort timeout)
+max_scan_duration_ms: 5000
+
+# Rayon thread pool size (None = Rayon default)
+# parallelism: 4
+
+# Name-based include filters (process name must contain one of these)
+# include_names:
+#   - "postgres"
+#   - "redis"
+#   - "nginx"
+
+# Name-based exclude filters (process name must NOT contain any of these)
+# exclude_names:
+#   - "chromium"
+#   - "firefox"
+
+# Regex-based include filters (acts as whitelist)
+# include_regex:
+#   - "(?i)postgres|mysql|redis"
+#   - "(?i)nginx|apache"
+#   - "(?i)java.*app"
+
+# Regex-based exclude filters (acts as blacklist)
+# exclude_regex:
+#   - "(?i)chromium|firefox|telegram"
+#   - "(?i)^kworker"
+#   - "(?i)^mdadm"
+
+# Logical process groups with metadata and match regexes
+groups:
+  # DATABASE GROUP
+  - name: "database"
+    subgroup: "postgres"
+    environment: "production"
+    team: "database"
+    criticality: "p0"
+    match_regex:
+      - "(?i)postgres"
+      - "(?i)postmaster"
+
+  - name: "database"
+    subgroup: "mysql"
+    environment: "production"
+    team: "database"
+    criticality: "p0"
+    match_regex:
+      - "(?i)mysqld"
+      - "(?i)mariadbd"
+
+  - name: "database"
+    subgroup: "redis"
+    environment: "production"
+    team: "cache"
+    criticality: "p1"
+    match_regex:
+      - "(?i)redis"
+
+  # APPLICATION GROUP
+  - name: "application"
+    subgroup: "java"
+    environment: "production"
+    team: "backend"
+    criticality: "p1"
+    match_regex:
+      - "(?i)^java"
+
+  - name: "application"
+    subgroup: "node"
+    environment: "production"
+    team: "frontend"
+    criticality: "p1"
+    match_regex:
+      - "(?i)^node"
+
+  - name: "application"
+    subgroup: "python"
+    environment: "production"
+    team: "backend"
+    criticality: "p1"
+    match_regex:
+      - "(?i)^python"
+
+  # WEBSERVER GROUP
+  - name: "webserver"
+    subgroup: "nginx"
+    environment: "production"
+    team: "platform"
+    criticality: "p0"
+    match_regex:
+      - "(?i)nginx"
+
+  - name: "webserver"
+    subgroup: "apache"
+    environment: "production"
+    team: "platform"
+    criticality: "p0"
+    match_regex:
+      - "(?i)apache"
+      - "(?i)httpd"
+
+  # SYSTEM GROUP
+  - name: "system"
+    subgroup: "systemd"
+    environment: "production"
+    team: "platform"
+    criticality: "p1"
+    match_regex:
+      - "(?i)systemd"
+      - "(?i)journald"
+
+  # CONTAINER GROUP
+  - name: "container"
+    subgroup: "docker"
+    environment: "production"
+    team: "platform"
+    criticality: "p0"
+    match_regex:
+      - "(?i)dockerd"
+      - "(?i)containerd"

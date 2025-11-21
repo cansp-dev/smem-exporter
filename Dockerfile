@@ -1,42 +1,23 @@
-# ---------- Stage 1: Build ----------
-FROM rust:1.82-slim AS builder
+FROM alpine:latest
 
-WORKDIR /app
+# Install dependencies
+RUN apk add --no-cache libgcc
 
-# Only copy manifest files first (caches dependencies)
-COPY Cargo.toml Cargo.lock ./
+# Create non-root user
+RUN addgroup -S app && adduser -S app -G app
 
-# Create a dummy src/main.rs to let Cargo build dependencies
-RUN mkdir src && echo "fn main() {}" > src/main.rs && cargo build --release
+# Copy binary (verwendet das musl target für bessere Kompatibilität)
+COPY target/x86_64-unknown-linux-musl/release/smem_exporter /usr/local/bin/
 
-# Now copy real source – invalidates only this layer
-COPY src ./src
-
-# Build final optimized binary
-RUN cargo build --release
-
-
-# ---------- Stage 2: Final Image ----------
-FROM ubuntu:24.04
-
-# Install minimal dependencies and create non-root user
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends ca-certificates && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/* && \
-    groupadd -r app && \
-    useradd -r -g app app
-
-COPY --from=builder /app/target/release/smem-exporter /usr/local/bin/smem-exporter
-
-RUN chmod +x /usr/local/bin/smem-exporter
-
+# Switch to non-root user
 USER app
 
+# Expose port
 EXPOSE 9215
 
-# Health check to verify the application starts correctly
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD ["/usr/local/bin/smem-exporter", "--version"] || exit 1
+# Health check
+HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:9215/health || exit 1
 
-ENTRYPOINT ["smem-exporter"]
+# Run the binary
+CMD ["smem_exporter"]

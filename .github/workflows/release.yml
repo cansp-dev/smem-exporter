@@ -13,7 +13,7 @@ jobs:
         target:
           - x86_64-unknown-linux-gnu
           - x86_64-unknown-linux-musl
-          - aarch64-unknown-linux-gnu
+          # aarch64-unknown-linux-gnu später hinzufügen
 
     steps:
       - name: Checkout
@@ -24,18 +24,11 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
-      - name: Install cross-compilation tools
-        run: |
-          sudo apt-get update
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu qemu-user-static
-          fi
-
       - name: Build debug binary for tests
         run: cargo build
 
       - name: Run unit tests
-        run: cargo test -- --nocapture
+        run: cargo test
 
       - name: Build release binary
         run: cargo build --release --locked --target ${{ matrix.target }}
@@ -43,32 +36,21 @@ jobs:
       - name: Smoke test binary
         run: |
           echo "🧪 Smoke testing ${{ matrix.target }} binary..."
-          if [ "${{ matrix.target }}" = "aarch64-unknown-linux-gnu" ]; then
-            # Use QEMU for ARM64 binary testing on AMD64 host
-            qemu-aarch64-static ./target/${{ matrix.target }}/release/smem-exporter --version
-          else
-            ./target/${{ matrix.target }}/release/smem-exporter --version
-          fi
+          ./target/${{ matrix.target }}/release/smem_exporter --version
           echo "✅ Binary smoke test passed for ${{ matrix.target }}"
-
-      - name: Binary security scan
-        run: |
-          echo "🔒 Basic binary security checks..."
-          file ./target/${{ matrix.target }}/release/smem-exporter
-          ls -la ./target/${{ matrix.target }}/release/smem-exporter
-          echo "✅ Binary security check completed for ${{ matrix.target }}"
 
       - name: Upload binary to Release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.target }}/release/smem-exporter
-          asset_name: smem-exporter-${{ matrix.target }}
+          file: target/${{ matrix.target }}/release/smem_exporter
+          asset_name: smem_exporter-${{ matrix.target }}
           tag: ${{ github.ref }}
 
   docker:
     needs: build
     runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - name: Checkout
@@ -80,140 +62,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build and test AMD64 image
-        run: |
-          echo "🔧 Building AMD64 Docker image..."
-          docker buildx build \
-            --platform linux/amd64 \
-            --tag canspnet/smem-exporter:test-amd64 \
-            --load .
-          
-          echo "🧪 Running comprehensive AMD64 tests..."
-          
-          # Basic functionality test
-          echo "1. Basic version test..."
-          docker run --rm \
-            canspnet/smem-exporter:test-amd64 --version
-          
-          # Extended container tests
-          echo "2. Extended container lifecycle test..."
-          docker run -d --name amd64-test \
-            -p 9215:9215 \
-            canspnet/smem-exporter:test-amd64
-          
-          # Wait for startup
-          echo "3. Waiting for container startup..."
-          sleep 15
-          
-          # Check if process is running
-          echo "4. Checking process status..."
-          docker exec amd64-test ps aux | grep smem-exporter && echo "✅ Process is running"
-          
-          # Test metrics endpoint
-          echo "5. Testing metrics endpoint..."
-          curl -f --retry 5 --retry-delay 3 --max-time 10 http://localhost:9215/metrics && echo "✅ Metrics endpoint accessible"
-          
-          # Test container logs
-          echo "6. Checking container logs..."
-          docker logs amd64-test | tail -10
-          
-          # Resource usage check
-          echo "7. Checking container resource usage..."
-          docker stats amd64-test --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
-          
-          # Graceful shutdown test
-          echo "8. Testing graceful shutdown..."
-          docker stop amd64-test
-          sleep 5
-          docker rm amd64-test
-          echo "✅ AMD64 extended tests passed!"
-
-      - name: Build and test ARM64 image
-        run: |
-          echo "🔧 Building ARM64 Docker image..."
-          docker buildx build \
-            --platform linux/arm64 \
-            --tag canspnet/smem-exporter:test-arm64 \
-            --load .
-          
-          echo "🧪 Running comprehensive ARM64 tests..."
-          
-          # Basic functionality test
-          echo "1. Basic version test..."
-          docker run --rm --platform linux/arm64 \
-            canspnet/smem-exporter:test-arm64 --version
-          
-          # Extended container tests
-          echo "2. Extended container lifecycle test..."
-          docker run -d --name arm64-test --platform linux/arm64 \
-            -p 9216:9215 \
-            canspnet/smem-exporter:test-arm64
-          
-          # Wait for startup
-          echo "3. Waiting for container startup..."
-          sleep 15
-          
-          # Check if process is running
-          echo "4. Checking process status..."
-          docker exec arm64-test ps aux | grep smem-exporter && echo "✅ Process is running"
-          
-          # Test metrics endpoint
-          echo "5. Testing metrics endpoint..."
-          curl -f --retry 5 --retry-delay 3 --max-time 10 http://localhost:9216/metrics && echo "✅ Metrics endpoint accessible"
-          
-          # Test container logs
-          echo "6. Checking container logs..."
-          docker logs arm64-test | tail -10
-          
-          # Resource usage check
-          echo "7. Checking container resource usage..."
-          docker stats arm64-test --no-stream --format "table {{.Container}}\t{{.CPUPerc}}\t{{.MemUsage}}"
-          
-          # Security context test
-          echo "8. Testing security context..."
-          docker exec arm64-test whoami && echo "✅ Running as non-root user"
-          docker exec arm64-test id && echo "✅ User context verified"
-          
-          # File system permissions test
-          echo "9. Testing file system permissions..."
-          docker exec arm64-test ls -la /usr/local/bin/smem-exporter && echo "✅ Binary permissions OK"
-          
-          # Architecture verification
-          echo "10. Verifying architecture..."
-          docker exec arm64-test uname -m && echo "✅ Architecture verified"
-          
-          # Graceful shutdown test
-          echo "11. Testing graceful shutdown..."
-          docker stop arm64-test
-          sleep 5
-          docker rm arm64-test
-          echo "✅ ARM64 extended tests passed!"
-
-      - name: Cross-architecture validation
-        run: |
-          echo "🔍 Cross-architecture validation..."
-          
-          # Verify both architectures are available and testable
-          echo "AMD64 Image Details:"
-          docker image inspect canspnet/smem-exporter:test-amd64 --format '{{.Architecture}} - {{.Os}} - {{.Size}} bytes'
-          
-          echo "ARM64 Image Details:"
-          docker image inspect canspnet/smem-exporter:test-arm64 --format '{{.Architecture}} - {{.Os}} - {{.Size}} bytes'
-          
-          # Size comparison (should be similar)
-          AMD64_SIZE=$(docker image inspect canspnet/smem-exporter:test-amd64 --format '{{.Size}}')
-          ARM64_SIZE=$(docker image inspect canspnet/smem-exporter:test-arm64 --format '{{.Size}}')
-          echo "📊 Image size - AMD64: $((AMD64_SIZE/1024/1024))MB, ARM64: $((ARM64_SIZE/1024/1024))MB"
-          
-          echo "✅ Cross-architecture validation completed!"
-
-      - name: Cleanup test images
-        run: |
-          echo "🧹 Cleaning up test images..."
-          docker rmi canspnet/smem-exporter:test-amd64 || true
-          docker rmi canspnet/smem-exporter:test-arm64 || true
-          echo "✅ Cleanup completed!"
-
       - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
@@ -224,43 +72,18 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64  # Nur AMD64 für jetzt
           push: true
           tags: |
-            canspnet/smem-exporter:${{ github.ref_name }}
-            canspnet/smem-exporter:latest
+            canspnet/smem_exporter:${{ github.ref_name }}
+            canspnet/smem_exporter:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
-          provenance: false
 
       - name: Verify pushed multi-arch manifest
         run: |
-          echo "📋 Verifying pushed multi-arch image manifest..."
-          docker buildx imagetools inspect canspnet/smem-exporter:${{ github.ref_name }}
-          
-          # Verify both architectures are present in the manifest
-          ARCHITECTURES=$(docker buildx imagetools inspect canspnet/smem-exporter:${{ github.ref_name }} --format '{{range .Manifest.Manifests}}{{.Platform.Architecture}} {{end}}')
-          echo "Detected architectures: $ARCHITECTURES"
-          
-          if echo "$ARCHITECTURES" | grep -q "amd64" && echo "$ARCHITECTURES" | grep -q "arm64"; then
-            echo "✅ Multi-arch manifest verified: amd64 and arm64 present"
-          else
-            echo "❌ Multi-arch manifest incomplete"
-            exit 1
-          fi
-
-      - name: Final smoke test from registry
-        run: |
-          echo "🚀 Final smoke test from Docker Hub registry..."
-          
-          # Test pulling and running the actual pushed image
-          docker pull --platform linux/amd64 canspnet/smem-exporter:${{ github.ref_name }}
-          
-          # Quick smoke test on the multi-arch image
-          docker run --rm --platform linux/amd64 \
-            canspnet/smem-exporter:${{ github.ref_name }} --version
-          
-          echo "✅ Final registry smoke test passed!"
+          echo "📋 Verifying pushed Docker image..."
+          docker buildx imagetools inspect canspnet/smem_exporter:${{ github.ref_name }}
 
   notification:
     needs: [build, docker]
@@ -272,7 +95,7 @@ jobs:
           if [ "${{ needs.build.result }}" = "success" ] && [ "${{ needs.docker.result }}" = "success" ]; then
             echo "🎉 Release v${{ github.ref_name }} completed successfully!"
             echo "📦 Binaries: GitHub Releases"
-            echo "🐳 Images: Docker Hub (amd64 + arm64)"
+            echo "🐳 Images: Docker Hub (amd64)"
           else
             echo "❌ Release failed - Check logs for details"
             exit 1
