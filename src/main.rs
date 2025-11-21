@@ -1,4 +1,4 @@
-// smem_exporter - version 0.0.0
+// smem-exporter - version 0.0.0
 // Fully production-ready, top-N support, sorting, cache, metrics
 
 use axum::{extract::State, http::StatusCode, response::IntoResponse, routing::get, Router};
@@ -34,7 +34,7 @@ const BUFFER_CAP: usize = 512 * 1024;
 /// CLI Arguments
 #[derive(Parser, Debug)]
 #[command(
-    name = "smem_exporter",
+    name = "smem-exporter",
     version = VERSION,
     about = "Prometheus exporter for per-process RSS/PSS/USS"
 )]
@@ -225,7 +225,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let processes_total = Gauge::new(
         "smem_processes_total",
-        "Number of processes currently exported by smem_exporter"
+        "Number of processes currently exported by smem-exporter"
     )?;
     let cache_update_duration = Gauge::new(
         "smem_cache_update_duration_seconds",
@@ -309,7 +309,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .with_state(state.clone());
 
     let listener = TcpListener::bind(addr).await?;
-    println!("smem_exporter listening on http://{}", listen_addr);
+    println!("smem-exporter listening on http://{}", listen_addr);
 
     // Start server with graceful shutdown
     let server = axum::serve(listener, app);
@@ -330,7 +330,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     background_task.abort();
     let _ = background_task.await;
 
-    println!("smem_exporter stopped gracefully");
+    println!("smem-exporter stopped gracefully");
     Ok(())
 }
 
@@ -574,10 +574,10 @@ fn load_config(path: Option<&str>) -> Config {
     }
 
     let defaults = [
-        "/etc/smem_exporter.yaml",
-        "/etc/smem_exporter.yml",
-        "./smem_exporter.yaml",
-        "./smem_exporter.yml",
+        "/etc/smem-exporter.yaml",
+        "/etc/smem-exporter.yml",
+        "./smem-exporter.yaml",
+        "./smem-exporter.yml",
     ];
 
     for p in &defaults {

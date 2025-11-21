@@ -1,5 +1,5 @@
-# smem_exporter.example.yaml
-# Example configuration file for smem_exporter
+# smem-exporter.example.yaml
+# Example configuration file for smem-exporter
 
 # HTTP listen address
 listen_addr: "0.0.0.0:9215"

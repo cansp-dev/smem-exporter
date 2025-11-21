@@ -35,13 +35,13 @@ jobs:
         run: |
           echo "🧪 Smoke testing ${{ matrix.target }} binary..."
           # WICHTIG: Prüfen ob Binary existiert
-          if [ -f "./target/${{ matrix.target }}/release/smem_exporter" ]; then
-            ./target/${{ matrix.target }}/release/smem_exporter --version
+          if [ -f "./target/${{ matrix.target }}/release/smem-exporter" ]; then
+            ./target/${{ matrix.target }}/release/smem-exporter --version
             echo "✅ Binary smoke test passed for ${{ matrix.target }}"
           else
-            echo "❌ Binary not found at ./target/${{ matrix.target }}/release/smem_exporter"
+            echo "❌ Binary not found at ./target/${{ matrix.target }}/release/smem-exporter"
             echo "📁 Available files in target/:"
-            find ./target/ -name "smem_exporter" -type f
+            find ./target/ -name "smem-exporter" -type f
             exit 1
           fi
 
@@ -49,8 +49,8 @@ jobs:
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: target/${{ matrix.target }}/release/smem_exporter
-          asset_name: smem_exporter-${{ matrix.target }}
+          file: target/${{ matrix.target }}/release/smem-exporter
+          asset_name: smem-exporter-${{ matrix.target }}
           tag: ${{ github.ref }}
 
   docker:
@@ -71,22 +71,22 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push Docker image
+      - nam : Build and push Docker image
         uses: docker/build-push-action@v5
         with:
           context: .
           platforms: linux/amd64
           push: true
           tags: |
-            canspnet/smem_exporter:${{ github.ref_name }}
-            canspnet/smem_exporter:latest
+            canspnet/smem-exporter:${{ github.ref_name }}
+            canspnet/smem-exporter:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
       - name: Verify pushed image
         run: |
           echo "📋 Verifying pushed Docker image..."
-          docker buildx imagetools inspect canspnet/smem_exporter:${{ github.ref_name }}
+          docker buildx imagetools inspect canspnet/smem-exporter:${{ github.ref_name }}
 
   notification:
     needs: [build, docker]

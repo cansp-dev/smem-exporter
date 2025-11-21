@@ -7,7 +7,7 @@ RUN apk add --no-cache libgcc
 RUN addgroup -S app && adduser -S app -G app
 
 # Copy binary (verwende das musl binary für bessere Kompatibilität)
-COPY target/x86_64-unknown-linux-musl/release/smem_exporter /usr/local/bin/
+COPY target/x86_64-unknown-linux-musl/release/smem-exporter /usr/local/bin/
 
 # Switch to non-root user
 USER app
@@ -20,4 +20,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
   CMD wget --no-verbose --tries=1 --spider http://localhost:9215/health || exit 1
 
 # Run the binary
-CMD ["smem_exporter"]
+CMD ["smem-exporter"]

@@ -1,4 +1,4 @@
-# smem_exporter
+# smem-exporter
 
 Prometheus exporter for detailed process memory metrics (RSS/PSS/USS) with intelligent grouping and business context.
 
@@ -22,28 +22,28 @@ Tested on workstation with 600+ processes:
 ## 🛠 Installation
 
 ```bash
-git clone https://github.com/yourusername/smem_exporter
-cd smem_exporter
+git clone https://github.com/yourusername/smem-exporter
+cd smem-exporter
 cargo build --release
 
 ## 📖 Usage
 
-See `configs/smem_exporter.example.yaml` for detailed configuration options.
+See `configs/smem-exporter.example.yaml` for detailed configuration options.
 
 Basic Usage
-./target/release/smem_exporter
+./target/release/smem-exporter
 
 With Configuration
-./target/release/smem_exporter -c smem_exporter.yaml
+./target/release/smem-exporter -c smem-exporter.yaml
 
 Configuration Validation
-./target/release/smem_exporter --testconfig -c config.yaml
+./target/release/smem-exporter --testconfig -c config.yaml
 
 Show complete Config with Defaults
-./target/release/smem_exporter --overallconfig -c config.yaml
+./target/release/smem-exporter --overallconfig -c config.yaml
 
 ⚙️ Configuration
-See smem_exporter.example.yaml for detailed configuration options.
+See smem-exporter.example.yaml for detailed configuration options.
 
 Key settings:
 
